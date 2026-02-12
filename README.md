@@ -52,15 +52,15 @@ Même si tu n’implémentes pas SCD tout de suite, ajoute au moins des tables d
 ## Structure
 ```mermaid
 sequenceDiagram
-    participant O as "Orchestrator"
-    participant L as "Load"
-    participant B as "Bucket from transform"
-    participant BS as "Bucket of Script"
-    participant E as "Executor"
-    participant M as "MySQL"
+    participant O as Orchestrator
+    participant L as Load
+    participant B as Bucket from transform
+    participant BS as Bucket of Script
+    participant E as Executor
+    participant M as MySQL
 
     O->>+L: /path/file/to/load
-    L->>+B: get /path/file/§to/load
+    L->>+B: get /path/file/to/load
     B->>-L: return file / files
     L->>+BS: PUT script.sql (generate + store)
     L-->>-O: success or failed
