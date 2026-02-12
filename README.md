@@ -40,7 +40,7 @@ Même si tu n’implémentes pas SCD tout de suite, ajoute au moins des tables d
 
 ---
 
-### Executable
+### Executor
 - logs structurés (run_id, dataset, table, counts, durée, erreurs)
 #### Reçois une alerte qu'il doit récup. un script
 ...
