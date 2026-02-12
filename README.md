@@ -77,10 +77,20 @@ sequenceDiagram
 - L'orchestrateur me transmet de path de fichier ou des dossier (les deux ?)
 - Format des données contenu dans le fichier ?
 
-## à faire
+## à faire 1er backlog
+- Simuler des données sortant d'un transforme.
+- Formatter des données.
+- Stocker les donnée en base de donnée. (une app)
+
+
 ### Load
 - Trouver un moyen de structuration des scripts.
 -
 ### Executor
 - Structureation de la db afin de connaitre l'historisation, réécriture ou autre des donnée afin de facilité la lecture des données.
--
+
+## Résumer 12.02.2026
+- Orchestrator demande a bucket manager d'envoyer un url de download à load.
+- load reçois le fichier, le télécharge et récupère le contenu JSON.
+- Je traduit le JSON en SQL.
+- Je l'insère en DB.
