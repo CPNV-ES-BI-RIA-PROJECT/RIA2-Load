@@ -1,0 +1,17 @@
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/BucketAdapterApplication.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/BucketAdapterFactory.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/BucketController.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/BucketService.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/adapter/BucketAdapter.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/adapter/impl/AWSBucketAdapterImpl.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/adapter/impl/AZUREBucketAdapterImpl.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/adapter/impl/GCPBucketAdapterImpl.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/bucketadapterexceptions/ApiExceptionHandler.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/bucketadapterexceptions/BucketObjectNotFoundException.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/bucketadapterexceptions/BucketOperationException.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/bucketadapterexceptions/InvalidBucketPathException.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/config/AwsClientConfig.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/config/DotenvInitializer.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/config/GcpStorageConfig.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/config/OpenApiConfig.java
+/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/main/java/com/bucketadapter/helpers/AdapterHelper.java
