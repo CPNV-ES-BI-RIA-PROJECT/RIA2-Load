@@ -1,0 +1,22 @@
+@startuml
+title GET /api/v1/objects (Async, REST, DI)
+
+actor ApiUser
+participant Router
+participant Controller
+participant JDK_HttpClientUrlDownloadService
+participant JDK_HttpClient
+
+
+== 1. HTTP Request ==
+ApiUser -> Router: 1. GET /api/load/objects?url=
+Router -> Controller: 2. route(request)
+
+== 3. Controller ==
+Controller ->> UrlDownloadService: 3. urlDownloadService(url)
+
+== 4. Service ==
+UrlDownloadService -> JDK_HttpClient: 4. DownloadedObject
+
+
+@enduml
