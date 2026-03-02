@@ -1,22 +1,51 @@
 @startuml
-title GET /api/v1/objects (Async, REST, DI)
+title POST /api/load/objects/import (Sync, REST, Download -> Parse DTO -> Generate SQL -> Upload)
 
 actor ApiUser
 participant Router
-participant Controller
-participant JDK_HttpClientUrlDownloadService
-participant JDK_HttpClient
-
+participant BucketController as Controller
+participant UrlDownloadService
+participant JDK_HttpClient as HttpClient
+participant TestPayloadReader
+participant SqlScriptService
+participant BucketService
+database Bucket as ObjectBucket
 
 == 1. HTTP Request ==
-ApiUser -> Router: 1. GET /api/load/objects?url=
-Router -> Controller: 2. route(request)
+ApiUser -> Router: POST /api/load/objects/import?remote=...\nBody: {"url":"https://..."}
+Router -> Controller: route(request)
 
-== 3. Controller ==
-Controller ->> UrlDownloadService: 3. urlDownloadService(url)
+== 2. Download ==
+Controller -> UrlDownloadService: fetch(url)
+UrlDownloadService -> HttpClient: send(GET presigned URL)
+HttpClient --> UrlDownloadService: 200 + bytes + headers
+UrlDownloadService --> Controller: DownloadedObject(bytes, contentType)
 
-== 4. Service ==
-UrlDownloadService -> JDK_HttpClient: 4. DownloadedObject
+== 3. Parse JSON to DTO ==
+Controller -> TestPayloadReader: read(bytes)
+TestPayloadReader --> Controller: TestPayload(schemaVersion,businessDate,tables)
 
+== 4. Map rows & build SQL ==
+loop for each table in payload.tables
+  Controller -> TestPayloadReader: asCustomers/asOrders/asOrderItems(table)
+  TestPayloadReader --> Controller: List<RowDTO>
+end
+Controller -> SqlScriptService: generate(customers, orders, orderItems)
+SqlScriptService --> Controller: sqlScript (String/bytes)
+
+== 5. Store artifacts in bucket ==
+Controller -> BucketService: upload(remote, jsonBytes)
+BucketService -> ObjectBucket: PUT remote (JSON)
+ObjectBucket --> BucketService: OK
+
+Controller -> SqlScriptService: deriveSqlRemote(remote)
+SqlScriptService --> Controller: sqlRemote
+
+Controller -> BucketService: upload(sqlRemote, sqlBytes)
+BucketService -> ObjectBucket: PUT sqlRemote (SQL)
+ObjectBucket --> BucketService: OK
+
+== 6. Response ==
+Controller --> ApiUser: 201 Created\nImportResult(remote,sizeBytes,schemaVersion,businessDate)
 
 @enduml
