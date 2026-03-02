@@ -136,6 +136,7 @@ public class BucketController {
     try {
       var downloaded = urlDownloadService.fetch(body.url());
 
+      // TODO Change with real data in week 5
       // Read JSON to dto
       TestPayload payload = testPayloadReader.read(downloaded.bytes());
 
@@ -162,6 +163,7 @@ public class BucketController {
         }
       }
 
+      // TODO Change with real translation SQL in week 5
       // Generation of SQL command
       String sql = sqlScriptService.generate(customers, orders, orderItems);
       byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);

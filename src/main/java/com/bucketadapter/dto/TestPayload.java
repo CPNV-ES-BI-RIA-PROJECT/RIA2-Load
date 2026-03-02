@@ -6,7 +6,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.time.LocalDate;
 import java.util.List;
-
+// TODO Change with real data in week 5
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record TestPayload(
         @JsonProperty("schema_version") String schemaVersion,
