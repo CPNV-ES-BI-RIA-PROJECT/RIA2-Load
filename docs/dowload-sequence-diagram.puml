@@ -1,7 +1,7 @@
 @startuml
 title POST /api/load/objects/import (Sync, REST, Download -> Parse DTO -> Generate SQL -> Upload)
 
-actor ApiUser
+participant Orchestrator
 participant Router
 participant BucketController as Controller
 participant UrlDownloadService
@@ -12,7 +12,7 @@ participant BucketService
 database Bucket as ObjectBucket
 
 == 1. HTTP Request ==
-ApiUser -> Router: POST /api/load/objects/import?remote=...\nBody: {"url":"https://..."}
+Orchestrator -> Router: POST /api/load/objects/import?remote=...\nBody: {"url":"https://..."}
 Router -> Controller: route(request)
 
 == 2. Download ==
@@ -46,6 +46,6 @@ BucketService -> ObjectBucket: PUT sqlRemote (SQL)
 ObjectBucket --> BucketService: OK
 
 == 6. Response ==
-Controller --> ApiUser: 201 Created\nImportResult(remote,sizeBytes,schemaVersion,businessDate)
+Controller --> Orchestrator: 201 Created\nImportResult(remote,sizeBytes,schemaVersion,businessDate)
 
 @enduml
