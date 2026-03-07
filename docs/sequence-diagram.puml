@@ -1,0 +1,78 @@
+@startuml
+title POST /load/objects/import?remote=... (Sync, REST, Download -> Parse JSON -> Generate SQL -> Transfer SQL)
+
+participant Orchestrator
+participant Router
+participant LoadController as Controller
+participant UrlDownloadService
+participant JDK_HttpClient as HttpClient
+participant TestPayloadReader
+participant JsonMapper
+participant SqlScriptService
+participant SqlScriptTransferClient as TransferClient
+participant BucketAdapter_API as BucketAdapter
+
+== 1. HTTP Request ==
+Orchestrator -> Router: POST /load/objects/import?remote=...\nBody: {"url":"https://..."}
+Router -> Controller: importFromUrl(remote, body)
+
+== 2. Download remote JSON ==
+Controller -> UrlDownloadService: fetch(body.url())
+UrlDownloadService -> UrlDownloadService: validateUrl(url)
+UrlDownloadService -> HttpClient: send(GET url)
+HttpClient --> UrlDownloadService: 200 + InputStream + headers
+UrlDownloadService -> UrlDownloadService: readWithLimit(stream, 50 MB)
+UrlDownloadService --> Controller: DownloadedObject(bytes, contentType)
+
+== 3. Parse payload ==
+Controller -> TestPayloadReader: read(downloaded.bytes())
+TestPayloadReader -> JsonMapper: readValue(bytes, TestPayload.class)
+JsonMapper --> TestPayloadReader: TestPayload
+TestPayloadReader --> Controller: TestPayload(schemaVersion, businessDate, tables)
+
+== 4. Validate required fields ==
+alt businessDate is null
+  Controller --> Orchestrator: 400 Bad Request\n"business_date is required"
+else schemaVersion is null or blank
+  Controller --> Orchestrator: 400 Bad Request\n"schema_version is required"
+else payload is valid
+  Controller -> Controller: init customers/orders/orderItems lists
+
+  == 5. Convert table rows ==
+  loop for each table in payload.tables()
+    alt table.name == "customers"
+      Controller -> TestPayloadReader: asCustomers(table)
+      TestPayloadReader -> JsonMapper: treeToValue(row, CustomerRow.class)
+      JsonMapper --> TestPayloadReader: CustomerRow
+      TestPayloadReader --> Controller: List<CustomerRow>
+    else table.name == "orders"
+      Controller -> TestPayloadReader: asOrders(table)
+      TestPayloadReader -> JsonMapper: treeToValue(row, OrderRow.class)
+      JsonMapper --> TestPayloadReader: OrderRow
+      TestPayloadReader --> Controller: List<OrderRow>
+    else table.name == "order_items"
+      Controller -> TestPayloadReader: asOrderItems(table)
+      TestPayloadReader -> JsonMapper: treeToValue(row, OrderItemRow.class)
+      JsonMapper --> TestPayloadReader: OrderItemRow
+      TestPayloadReader --> Controller: List<OrderItemRow>
+    else other table
+      Controller -> Controller: ignore table
+    end
+  end
+
+  == 6. Generate SQL ==
+  Controller -> SqlScriptService: generate(customers, orders, orderItems)
+  SqlScriptService --> Controller: sql (String)
+  Controller -> Controller: sqlBytes = sql.getBytes(UTF_8)\nfileName = import_{schemaVersion}_{businessDate}.sql\npath = "bi1-julien/" + fileName
+
+  == 7. Transfer SQL script ==
+  Controller -> TransferClient: sendSqlScript(path, fileName, sqlBytes)
+  TransferClient -> BucketAdapter: POST /api/v1/objects?remote=path\nmultipart/form-data(file)
+  BucketAdapter --> TransferClient: BucketUploadResponse(remote, shareUrl, expirationTime)
+  TransferClient --> Controller: BucketUploadResponse
+
+  == 8. Response ==
+  Controller --> Orchestrator: 201 Created\nImportResult(remote, sizeBytes,\nschemaVersion, businessDate,\nbucketRemote, shareUrl, expirationTime)
+end
+
+@enduml
