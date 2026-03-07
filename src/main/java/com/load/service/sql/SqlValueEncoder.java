@@ -1,4 +1,4 @@
-package com.bucketadapter.service.sql;
+package com.load.service.sql;
 
 import java.math.BigDecimal;
 

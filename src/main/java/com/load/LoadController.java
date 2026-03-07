@@ -1,18 +1,18 @@
-package com.bucketadapter;
+package com.load;
 
-import com.bucketadapter.dto.TestPayload;
-import com.bucketadapter.service.TestPayloadReader;
-import com.bucketadapter.service.UrlDownloadService;
-import com.bucketadapter.service.sql.SqlScriptService;
+import com.load.dto.TestPayload;
+import com.load.service.TestPayloadReader;
+import com.load.service.UrlDownloadService;
+import com.load.service.sql.SqlScriptService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import com.bucketadapter.dto.Rows.CustomerRow;
-import com.bucketadapter.dto.Rows.OrderItemRow;
-import com.bucketadapter.dto.Rows.OrderRow;
+import com.load.dto.Rows.CustomerRow;
+import com.load.dto.Rows.OrderItemRow;
+import com.load.dto.Rows.OrderRow;
 
 
 import java.io.IOException;
@@ -25,102 +25,28 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.bucketadapter.dto.ImportFromUrlRequest;
+import com.load.dto.ImportFromUrlRequest;
 
 @RestController
 @RequestMapping("/load/objects")
-public class BucketController {
+public class LoadController {
 
-  @SuppressFBWarnings(
-      value = "EI_EXPOSE_REP2",
-      justification =
-          "BucketService is injected by Spring (bean); the controller does not expose it.")
-  private final BucketService bucketService;
   private final UrlDownloadService urlDownloadService;
   private final TestPayloadReader testPayloadReader;
   private final SqlScriptService sqlScriptService;
 
-  public BucketController(
-          BucketService bucketService,
+  public LoadController(
           UrlDownloadService urlDownloadService,
           TestPayloadReader testPayloadReader,
           SqlScriptService sqlScriptService
   ) {
-    this.bucketService = bucketService;
     this.urlDownloadService = urlDownloadService;
     this.testPayloadReader = testPayloadReader;
     this.sqlScriptService = sqlScriptService;
   }
 
-
-  @Operation(
-      summary = "List objects",
-      description =
-          "Lists objects under the remote prefix. Use recursive=true to include subfolders.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "List returned"),
-    @ApiResponse(responseCode = "400", description = "Invalid remote path"),
-    @ApiResponse(responseCode = "404", description = "Bucket/object not found"),
-    @ApiResponse(responseCode = "500", description = "Internal error")
-  })
-  @GetMapping(params = "remote")
-  public List<String> list(
-      @RequestParam String remote, @RequestParam(defaultValue = "false") boolean recursive) {
-    return bucketService.list(remote, recursive);
-  }
-
-  @Operation(summary = "Upload an object")
-  @ApiResponses({
-    @ApiResponse(responseCode = "201", description = "Object created"),
-    @ApiResponse(responseCode = "400", description = "Invalid remote path"),
-    @ApiResponse(responseCode = "404", description = "Bucket/object not found")
-  })
-  @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  @ResponseStatus(HttpStatus.CREATED)
-  public void upload(@RequestParam String remote, @RequestPart("file") MultipartFile file) {
-    try {
-      bucketService.upload(remote, file.getBytes());
-    } catch (IOException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to read uploaded file", e);
-    }
-  }
-
-  @Operation(
-      summary = "Delete an object",
-      description =
-          "Deletes the object targeted by remote. If remote points to a prefix, use recursive=true.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Object deleted"),
-    @ApiResponse(responseCode = "400", description = "Invalid remote path"),
-    @ApiResponse(responseCode = "404", description = "Bucket/object not found"),
-    @ApiResponse(responseCode = "500", description = "Internal error")
-  })
-  @DeleteMapping(params = "remote")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @RequestParam String remote, @RequestParam(defaultValue = "false") boolean recursive) {
-    bucketService.delete(remote, recursive);
-  }
-
-  @Operation(
-      summary = "Share an object",
-      description =
-          "Returns a presigned URL for the remote object, valid for expirationTime seconds.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Presigned URL returned"),
-    @ApiResponse(responseCode = "400", description = "Invalid remote path"),
-    @ApiResponse(responseCode = "404", description = "Bucket/object not found"),
-    @ApiResponse(responseCode = "500", description = "Internal error")
-  })
-  @GetMapping(
-      value = "/share",
-      params = {"remote", "expirationTime"})
-  public String share(@RequestParam String remote, @RequestParam int expirationTime) {
-    return bucketService.share(remote, expirationTime);
-  }
-
   private static final org.slf4j.Logger log =
-          org.slf4j.LoggerFactory.getLogger(BucketController.class);
+          org.slf4j.LoggerFactory.getLogger(LoadController.class);
 
   @Operation(
           summary = "Import an object from a shared URL",
@@ -168,12 +94,7 @@ public class BucketController {
       String sql = sqlScriptService.generate(customers, orders, orderItems);
       byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-      // Storage JSON file
-      bucketService.upload(remote, downloaded.bytes());
-
-      // Storage SQL file
-      String sqlRemote = SqlScriptService.deriveSqlRemote(remote);
-      bucketService.upload(sqlRemote, sqlBytes);
+      // TODO send data to bucket adapter
 
       return new ImportResult(
               remote,

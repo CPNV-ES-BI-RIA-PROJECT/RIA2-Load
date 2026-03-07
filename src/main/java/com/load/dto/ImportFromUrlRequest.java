@@ -1,3 +1,3 @@
-package com.bucketadapter.dto;
+package com.load.dto;
 
 public record ImportFromUrlRequest(String url) {}
