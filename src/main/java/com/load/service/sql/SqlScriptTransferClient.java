@@ -1,5 +1,6 @@
 package com.load.service.sql;
 
+import com.load.dto.BucketUploadResponse;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
@@ -19,7 +20,7 @@ public class SqlScriptTransferClient {
         this.restClient = bucketAdapterRestClient;
     }
 
-    public void sendSqlScript(String remote, String fileName, byte[] content) {
+    public BucketUploadResponse sendSqlScript(String remote, String fileName, byte[] content) {
         ByteArrayResource resource = new ByteArrayResource(content) {
             @Override
             public String getFilename() {
@@ -41,14 +42,15 @@ public class SqlScriptTransferClient {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", filePart);
 
-        restClient.post()
+        return restClient.post()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/v1/objects")
                         .queryParam("remote", remote)
                         .build())
                 .contentType(MediaType.MULTIPART_FORM_DATA)
+                .accept(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toBodilessEntity();
+                .body(BucketUploadResponse.class);
     }
 }

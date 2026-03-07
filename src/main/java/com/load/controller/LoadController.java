@@ -1,5 +1,6 @@
 package com.load.controller;
 
+import com.load.dto.BucketUploadResponse;
 import com.load.dto.TestPayload;
 import com.load.service.TestPayloadReader;
 import com.load.service.UrlDownloadService;
@@ -99,13 +100,17 @@ public class LoadController {
       );
       String path = "bi1-julien/" + fileName;
 
-      sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
+      BucketUploadResponse uploadResponse =
+              sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
 
       return new ImportResult(
-              path,
+              remote,
               downloaded.bytes().length,
               payload.schemaVersion(),
-              payload.businessDate().toString()
+              payload.businessDate().toString(),
+              uploadResponse.remote(),
+              uploadResponse.shareUrl(),
+              uploadResponse.expirationTime()
       );
 
     } catch (org.springframework.web.server.ResponseStatusException e) {
@@ -120,6 +125,14 @@ public class LoadController {
     }
   }
 
-  public record ImportResult(String remote, int sizeBytes, String schemaVersion, String businessDate) {}
+  public record ImportResult(
+          String remote,
+          int sizeBytes,
+          String schemaVersion,
+          String businessDate,
+          String bucketRemote,
+          String shareUrl,
+          long expirationTime
+  ) {}
 
 }
