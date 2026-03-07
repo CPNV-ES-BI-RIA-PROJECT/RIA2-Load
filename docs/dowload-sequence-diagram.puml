@@ -1,0 +1,51 @@
+@startuml
+title POST /api/load/objects/import (Sync, REST, Download -> Parse DTO -> Generate SQL -> Upload)
+
+participant Orchestrator
+participant Router
+participant BucketController as Controller
+participant UrlDownloadService
+participant JDK_HttpClient as HttpClient
+participant TestPayloadReader
+participant SqlScriptService
+participant BucketService
+database Bucket as ObjectBucket
+
+== 1. HTTP Request ==
+Orchestrator -> Router: POST /api/load/objects/import?remote=...\nBody: {"url":"https://..."}
+Router -> Controller: route(request)
+
+== 2. Download ==
+Controller -> UrlDownloadService: fetch(url)
+UrlDownloadService -> HttpClient: send(GET presigned URL)
+HttpClient --> UrlDownloadService: 200 + bytes + headers
+UrlDownloadService --> Controller: DownloadedObject(bytes, contentType)
+
+== 3. Parse JSON to DTO ==
+Controller -> TestPayloadReader: read(bytes)
+TestPayloadReader --> Controller: TestPayload(schemaVersion,businessDate,tables)
+
+== 4. Map rows & build SQL ==
+loop for each table in payload.tables
+  Controller -> TestPayloadReader: asCustomers/asOrders/asOrderItems(table)
+  TestPayloadReader --> Controller: List<RowDTO>
+end
+Controller -> SqlScriptService: generate(customers, orders, orderItems)
+SqlScriptService --> Controller: sqlScript (String/bytes)
+
+== 5. Store artifacts in bucket ==
+Controller -> BucketService: upload(remote, jsonBytes)
+BucketService -> ObjectBucket: PUT remote (JSON)
+ObjectBucket --> BucketService: OK
+
+Controller -> SqlScriptService: deriveSqlRemote(remote)
+SqlScriptService --> Controller: sqlRemote
+
+Controller -> BucketService: upload(sqlRemote, sqlBytes)
+BucketService -> ObjectBucket: PUT sqlRemote (SQL)
+ObjectBucket --> BucketService: OK
+
+== 6. Response ==
+Controller --> Orchestrator: 201 Created\nImportResult(remote,sizeBytes,schemaVersion,businessDate)
+
+@enduml
