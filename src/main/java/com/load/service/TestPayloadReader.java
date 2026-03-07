@@ -1,7 +1,7 @@
-package com.bucketadapter.service;
+package com.load.service;
 
-import com.bucketadapter.dto.TestPayload;
-import com.bucketadapter.dto.Rows.*;
+import com.load.dto.TestPayload;
+import com.load.dto.Rows.*;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 

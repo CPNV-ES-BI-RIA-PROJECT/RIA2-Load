@@ -1,8 +1,8 @@
-package com.bucketadapter.service.sql;
+package com.load.service.sql;
 
-import com.bucketadapter.dto.Rows.CustomerRow;
-import com.bucketadapter.dto.Rows.OrderItemRow;
-import com.bucketadapter.dto.Rows.OrderRow;
+import com.load.dto.Rows.CustomerRow;
+import com.load.dto.Rows.OrderItemRow;
+import com.load.dto.Rows.OrderRow;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

@@ -1,5 +1,5 @@
 // src/main/java/com/bucketadapter/dto/Rows.java
-package com.bucketadapter.dto;
+package com.load.dto;
 // TODO Change with real data in week 5
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
