@@ -1,9 +1,11 @@
-package com.load;
+package com.load.controller;
 
+import com.load.dto.BucketUploadResponse;
 import com.load.dto.TestPayload;
 import com.load.service.TestPayloadReader;
 import com.load.service.UrlDownloadService;
 import com.load.service.sql.SqlScriptService;
+import com.load.service.sql.SqlScriptTransferClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -15,12 +17,7 @@ import com.load.dto.Rows.OrderItemRow;
 import com.load.dto.Rows.OrderRow;
 
 
-import java.io.IOException;
-
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,15 +31,18 @@ public class LoadController {
   private final UrlDownloadService urlDownloadService;
   private final TestPayloadReader testPayloadReader;
   private final SqlScriptService sqlScriptService;
+  private final SqlScriptTransferClient sqlScriptTransferClient;
 
   public LoadController(
           UrlDownloadService urlDownloadService,
           TestPayloadReader testPayloadReader,
-          SqlScriptService sqlScriptService
+          SqlScriptService sqlScriptService,
+          SqlScriptTransferClient sqlScriptTransferClient
   ) {
     this.urlDownloadService = urlDownloadService;
     this.testPayloadReader = testPayloadReader;
     this.sqlScriptService = sqlScriptService;
+    this.sqlScriptTransferClient = sqlScriptTransferClient;
   }
 
   private static final org.slf4j.Logger log =
@@ -94,13 +94,23 @@ public class LoadController {
       String sql = sqlScriptService.generate(customers, orders, orderItems);
       byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-      // TODO send data to bucket adapter
+      String fileName = "import_%s_%s.sql".formatted(
+              payload.schemaVersion(),
+              payload.businessDate()
+      );
+      String path = "bi1-julien/" + fileName;
+
+      BucketUploadResponse uploadResponse =
+              sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
 
       return new ImportResult(
               remote,
               downloaded.bytes().length,
               payload.schemaVersion(),
-              payload.businessDate().toString()
+              payload.businessDate().toString(),
+              uploadResponse.remote(),
+              uploadResponse.shareUrl(),
+              uploadResponse.expirationTime()
       );
 
     } catch (org.springframework.web.server.ResponseStatusException e) {
@@ -115,6 +125,14 @@ public class LoadController {
     }
   }
 
-  public record ImportResult(String remote, int sizeBytes, String schemaVersion, String businessDate) {}
+  public record ImportResult(
+          String remote,
+          int sizeBytes,
+          String schemaVersion,
+          String businessDate,
+          String bucketRemote,
+          String shareUrl,
+          long expirationTime
+  ) {}
 
 }

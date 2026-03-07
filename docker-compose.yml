@@ -3,8 +3,9 @@ services:
     build: .
     image: load:latest
     ports:
-      - "${SEREVER_PORT:-8080}:${SEREVER_PORT:-8080}"
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     env_file:
       - .env
     environment:
-      SEREVER_PORT: ${SEREVER_PORT:-8080}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      BUCKET_ADAPTER_BASE_URL: ${BUCKET_ADAPTER_BASE_URL}
