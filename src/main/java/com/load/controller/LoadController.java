@@ -1,6 +1,7 @@
 package com.load.controller;
 
 import com.load.dto.BucketUploadResponse;
+import com.load.dto.ImportFromUrlRequest;
 import com.load.dto.TestPayload;
 import com.load.service.TestPayloadReader;
 import com.load.service.UrlDownloadService;
@@ -12,17 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import com.load.dto.Rows.CustomerRow;
-import com.load.dto.Rows.OrderItemRow;
-import com.load.dto.Rows.OrderRow;
-
-
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import com.load.dto.ImportFromUrlRequest;
 
 @RestController
 @RequestMapping("/load/objects")
@@ -50,7 +41,8 @@ public class LoadController {
 
   @Operation(
           summary = "Import an object from a shared URL",
-          description = "Downloads a file from an HTTP(S) URL, read content to translate json into sql and store script in bucket.")
+          description = "Downloads a file from an HTTP(S) URL, reads JSON, translates it into SQL and stores the script in bucket."
+  )
   @ApiResponses({
           @ApiResponse(responseCode = "201", description = "Object imported"),
           @ApiResponse(responseCode = "400", description = "Invalid URL or remote path"),
@@ -62,43 +54,28 @@ public class LoadController {
     try {
       var downloaded = urlDownloadService.fetch(body.url());
 
-      // TODO Change with real data in week 5
-      // Read JSON to dto
       TestPayload payload = testPayloadReader.read(downloaded.bytes());
 
-      if (payload.businessDate() == null) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "business_date is required");
+      if (payload.uid() == null || payload.uid().isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "uid is required");
       }
-      if (payload.schemaVersion() == null || payload.schemaVersion().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "schema_version is required");
+      if (payload.dtstamp() == null || payload.dtstamp().isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtstamp is required");
       }
-
-      // Get type of rows
-      List<CustomerRow> customers = new ArrayList<>();
-      List<OrderRow> orders = new ArrayList<>();
-      List<OrderItemRow> orderItems = new ArrayList<>();
-
-      for (var table : payload.tables()) {
-        switch (table.name()) {
-          case "customers" -> customers.addAll(testPayloadReader.asCustomers(table));
-          case "orders" -> orders.addAll(testPayloadReader.asOrders(table));
-          case "order_items" -> orderItems.addAll(testPayloadReader.asOrderItems(table));
-          default -> {
-            // MVP: Ignore empty tables
-          }
-        }
+      if (payload.dtstart() == null || payload.dtstart().isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtstart is required");
+      }
+      if (payload.dtend() == null || payload.dtend().isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtend is required");
       }
 
-      // TODO Change with real translation SQL in week 5
-      // Generation of SQL command
-      String sql = sqlScriptService.generate(customers, orders, orderItems);
+      var event = testPayloadReader.asEvent(payload);
+
+      String sql = sqlScriptService.generate(event);
       byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-      String fileName = "import_%s_%s.sql".formatted(
-              payload.schemaVersion(),
-              payload.businessDate()
-      );
-      String path = "bi1-julien/" + fileName;
+      String path = sqlScriptService.deriveSqlRemote(remote);
+      String fileName = path.substring(path.lastIndexOf('/') + 1);
 
       BucketUploadResponse uploadResponse =
               sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
@@ -106,14 +83,15 @@ public class LoadController {
       return new ImportResult(
               remote,
               downloaded.bytes().length,
-              payload.schemaVersion(),
-              payload.businessDate().toString(),
+              payload.uid(),
+              payload.dtstart(),
+              payload.dtend(),
               uploadResponse.remote(),
               uploadResponse.shareUrl(),
               uploadResponse.expirationTime()
       );
 
-    } catch (org.springframework.web.server.ResponseStatusException e) {
+    } catch (ResponseStatusException e) {
       log.error("Import failed with status={}", e.getStatusCode(), e);
       throw e;
     } catch (IllegalArgumentException e) {
@@ -128,11 +106,11 @@ public class LoadController {
   public record ImportResult(
           String remote,
           int sizeBytes,
-          String schemaVersion,
-          String businessDate,
+          String uid,
+          String dtstart,
+          String dtend,
           String bucketRemote,
           String shareUrl,
           long expirationTime
   ) {}
-
 }
