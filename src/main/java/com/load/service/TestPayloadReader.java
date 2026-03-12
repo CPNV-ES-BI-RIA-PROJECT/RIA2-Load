@@ -2,6 +2,7 @@ package com.load.service;
 
 import com.load.dto.Rows.EventRow;
 import com.load.dto.TestPayload;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -10,6 +11,10 @@ public class TestPayloadReader {
 
     private final JsonMapper jsonMapper;
 
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "JsonMapper is a Spring-managed shared dependency configured at startup"
+    )
     public TestPayloadReader(JsonMapper jsonMapper) {
         this.jsonMapper = jsonMapper;
     }
