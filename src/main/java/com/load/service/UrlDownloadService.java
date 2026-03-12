@@ -115,5 +115,15 @@ public class UrlDownloadService {
         }
     }
 
-    public record DownloadedObject(byte[] bytes, String contentType) {}
+    public record DownloadedObject(byte[] bytes, String contentType) {
+
+        public DownloadedObject {
+            bytes = bytes == null ? null : bytes.clone();
+        }
+
+        @Override
+        public byte[] bytes() {
+            return bytes == null ? null : bytes.clone();
+        }
+    }
 }

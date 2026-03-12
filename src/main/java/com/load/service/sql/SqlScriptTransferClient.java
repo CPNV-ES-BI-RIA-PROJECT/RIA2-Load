@@ -1,6 +1,7 @@
 package com.load.service.sql;
 
 import com.load.dto.BucketUploadResponse;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
@@ -16,6 +17,10 @@ public class SqlScriptTransferClient {
 
     private final RestClient restClient;
 
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification = "RestClient is a shared Spring-managed dependency configured at startup"
+    )
     public SqlScriptTransferClient(RestClient bucketAdapterRestClient) {
         this.restClient = bucketAdapterRestClient;
     }
