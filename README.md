@@ -201,46 +201,6 @@ POST {BUCKET_ADAPTER_BASE_URL}/api/v1/objects?remote={remote}
 
 with a multipart form field named `file`.
 
-## Run Locally
-
-Requirements:
-
-- Java 21
-- Maven 3.9+ or the included Maven Wrapper
-
-Start the application:
-
-```bash
-./mvnw spring-boot:run
-```
-
-or:
-
-```bash
-mvn spring-boot:run
-```
-
-If you created `.env`, Spring loads it automatically at startup.
-
-## Build
-
-Package the application:
-
-```bash
-./mvnw clean package
-```
-
-Run code quality checks included in the Maven lifecycle:
-
-```bash
-./mvnw verify
-```
-
-This project includes:
-
-- Checkstyle during `verify`
-- SpotBugs during `verify`
-
 ## Docker
 
 Build and run with Docker Compose:
