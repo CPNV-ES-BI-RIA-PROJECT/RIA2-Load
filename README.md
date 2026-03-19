@@ -186,7 +186,7 @@ Required variables:
 ```bash
 SERVER_PORT=8090
 # If you run in docker use this : host.docker.internal else localhost.
-BUCKET_ADAPTER_BASE_URL=http://host.docker.internal:8081
+BUCKET_ADAPTER_BASE_URL=http://<SERVICE_DOMAIN>:8081
 ```
 
 What they are used for:
