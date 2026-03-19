@@ -24,19 +24,18 @@ Client -> RIA2-Load -> download remote JSON
 The generated SQL targets this table shape:
 
 ```sql
-INSERT INTO events (
-    uid,
-    dtstamp,
-    dtstart,
-    dtend,
-    summary,
-    description,
-    categories,
-    organizer,
-    attendee,
-    location,
-    timezone
-) VALUES (...);
+INSERT INTO events (uid,
+                    dtstamp,
+                    dtstart,
+                    dtend,
+                    summary,
+                    description,
+                    categories,
+                    organizer,
+                    attendee,
+                    location,
+                    timezone)
+VALUES (...);
 ```
 
 ## Tech Stack
@@ -122,7 +121,6 @@ Path conversion rules:
 
 - `events/demo.json` -> `events/demo.sql`
 
-
 Success response:
 
 ```json
@@ -170,7 +168,9 @@ Notes:
 - nullable fields are encoded as `NULL` in SQL
 - single quotes are escaped in generated SQL
 
-Sample fixtures are available in [src/test/json/data.json](/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/test/json/data.json) and [src/test/json/result.sql](/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/test/json/result.sql).
+Sample fixtures are available
+in [src/test/json/data.json](/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/test/json/data.json)
+and [src/test/json/result.sql](/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/src/test/json/result.sql).
 
 ## Configuration
 
@@ -185,7 +185,8 @@ Required variables:
 
 ```bash
 SERVER_PORT=8090
-BUCKET_ADAPTER_BASE_URL=http://localhost:8081
+# If you run in docker use this : host.docker.internal else localhost.
+BUCKET_ADAPTER_BASE_URL=http://host.docker.internal:8081
 ```
 
 What they are used for:
@@ -251,4 +252,5 @@ curl -X POST "http://localhost:8090/api/load/objects/import?remote=events/demo.j
 
 ## License
 
-This repository is distributed under the MIT License. See [LICENSE](/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/LICENSE).
+This repository is distributed under the MIT License.
+See [LICENSE](/Users/julienschneider/Desktop/cpnv/S7/RIA2/RIA2-Load/LICENSE).
