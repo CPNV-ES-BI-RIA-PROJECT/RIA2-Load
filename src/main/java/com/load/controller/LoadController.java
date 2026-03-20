@@ -1,12 +1,8 @@
 package com.load.controller;
 
-import com.load.dto.BucketUploadResponse;
 import com.load.dto.ImportFromUrlRequest;
-import com.load.dto.TestPayload;
-import com.load.service.TestPayloadReader;
-import com.load.service.UrlDownloadService;
-import com.load.service.sql.SqlScriptService;
-import com.load.service.sql.SqlScriptTransferClient;
+import com.load.dto.LoadImportResult;
+import com.load.service.importer.LoadImportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,21 +21,12 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/load/objects")
 public class LoadController {
 
-  private final UrlDownloadService urlDownloadService;
-  private final TestPayloadReader testPayloadReader;
-  private final SqlScriptService sqlScriptService;
-  private final SqlScriptTransferClient sqlScriptTransferClient;
+  private final LoadImportService loadImportService;
 
   public LoadController(
-          UrlDownloadService urlDownloadService,
-          TestPayloadReader testPayloadReader,
-          SqlScriptService sqlScriptService,
-          SqlScriptTransferClient sqlScriptTransferClient
+          LoadImportService loadImportService
   ) {
-    this.urlDownloadService = urlDownloadService;
-    this.testPayloadReader = testPayloadReader;
-    this.sqlScriptService = sqlScriptService;
-    this.sqlScriptTransferClient = sqlScriptTransferClient;
+    this.loadImportService = loadImportService;
   }
 
   private static final org.slf4j.Logger log =
@@ -58,43 +45,17 @@ public class LoadController {
   @ResponseStatus(HttpStatus.CREATED)
   public ImportResult importFromUrl(@RequestParam String remote, @RequestBody ImportFromUrlRequest body) {
     try {
-      var downloaded = urlDownloadService.fetch(body.url());
-
-      TestPayload payload = testPayloadReader.read(downloaded.bytes());
-
-      if (payload.uid() == null || payload.uid().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "uid is required");
-      }
-      if (payload.dtstamp() == null || payload.dtstamp().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtstamp is required");
-      }
-      if (payload.dtstart() == null || payload.dtstart().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtstart is required");
-      }
-      if (payload.dtend() == null || payload.dtend().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtend is required");
-      }
-
-      var event = testPayloadReader.asEvent(payload);
-
-      String sql = sqlScriptService.generate(event);
-      byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-
-      String path = sqlScriptService.deriveSqlRemote(remote);
-      String fileName = path.substring(path.lastIndexOf('/') + 1);
-
-      BucketUploadResponse uploadResponse =
-              sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
+      LoadImportResult result = loadImportService.importFromUrl(remote, body.url());
 
       return new ImportResult(
-              remote,
-              downloaded.bytes().length,
-              payload.uid(),
-              payload.dtstart(),
-              payload.dtend(),
-              uploadResponse.remote(),
-              uploadResponse.shareUrl(),
-              uploadResponse.expirationTime()
+              result.remote(),
+              result.sizeBytes(),
+              result.uid(),
+              result.dtstart(),
+              result.dtend(),
+              result.bucketRemote(),
+              result.shareUrl(),
+              result.expirationTime()
       );
 
     } catch (ResponseStatusException e) {

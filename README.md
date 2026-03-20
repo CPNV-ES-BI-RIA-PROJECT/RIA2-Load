@@ -7,7 +7,10 @@
 3. generates a SQL `INSERT` script for the `events` table,
 4. uploads the generated `.sql` file to an external bucket-adapter service.
 
-The current application exposes one REST endpoint for this import flow.
+The application exposes:
+
+- one REST endpoint for this import flow
+- one MQTT command subscription (`cmd/start`) when MQTT is enabled
 
 ## What the application does
 
@@ -142,6 +145,38 @@ Main status codes:
 - `400 Bad Request`: invalid URL, missing required fields, invalid host, invalid payload
 - `500 Internal Server Error`: unexpected failure during import or upload
 
+## MQTT
+
+When `MQTT_ENABLED=true`, the service subscribes to:
+
+- `etl/{namespace}/{service_name}/cmd/start`
+
+and emits:
+
+- `etl/{namespace}/{service_name}/event/running`
+- `etl/{namespace}/{service_name}/event/completed`
+- `etl/{namespace}/{service_name}/event/failed`
+
+Default values are `namespace=stack1` and `service_name=load`.
+
+Command payload:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "job_id": "12345",
+  "input": {
+    "uri": "https://example.com/event.json"
+  }
+}
+```
+
+Notes:
+
+- `schemaVersion`, `job_id`, and `input.uri` are mandatory.
+- The service always emits at least one `running` event before `completed`/`failed`.
+- If `options.remote` is not provided, the service uses `jobs/{job_id}.json`.
+
 ## JSON Payload Format
 
 The code maps the remote JSON file to this structure:
@@ -179,7 +214,7 @@ The application loads configuration from:
 - environment variables
 - a local `.env` file
 
-There is currently no `.env.example` file in the repository, so create `.env` manually.
+An example file is provided as `.env.exemple`; copy it to `.env` and adjust values.
 
 Required variables:
 
@@ -187,12 +222,22 @@ Required variables:
 SERVER_PORT=8090
 # If you run in docker use this : host.docker.internal else localhost.
 BUCKET_ADAPTER_BASE_URL=http://<SERVICE_DOMAIN>:8081
+MQTT_ENABLED=false
+MQTT_BROKER_URL=tcp://localhost:1883
+MQTT_NAMESPACE=stack1
+MQTT_SERVICE_NAME=load
+MQTT_SCHEMA_VERSION=1.0
 ```
 
 What they are used for:
 
 - `SERVER_PORT`: HTTP port used by Spring Boot
 - `BUCKET_ADAPTER_BASE_URL`: base URL of the external bucket-adapter service used to upload the generated SQL file
+- `MQTT_ENABLED`: enables/disables MQTT integration
+- `MQTT_BROKER_URL`: broker URL used by MQTT client
+- `MQTT_NAMESPACE`: `{namespace}` used in ETL topics
+- `MQTT_SERVICE_NAME`: `{service_name}` used in ETL topics
+- `MQTT_SCHEMA_VERSION`: expected and emitted schema version
 
 The upload client sends the SQL file to:
 
