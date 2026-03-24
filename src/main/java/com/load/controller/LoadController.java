@@ -15,7 +15,6 @@ import org.springframework.http.MediaType;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -51,12 +50,12 @@ public class LoadController {
   )
   @ApiResponses({
           @ApiResponse(responseCode = "201", description = "Object imported"),
-          @ApiResponse(responseCode = "400", description = "Invalid URL or remote path"),
+          @ApiResponse(responseCode = "400", description = "Invalid URL"),
           @ApiResponse(responseCode = "500", description = "Internal error")
   })
-  @PostMapping(value = "/import", consumes = MediaType.APPLICATION_JSON_VALUE, params = "remote")
+  @PostMapping(value = "/import", consumes = MediaType.APPLICATION_JSON_VALUE)
   @ResponseStatus(HttpStatus.CREATED)
-  public ImportResult importFromUrl(@RequestParam String remote, @RequestBody ImportFromUrlRequest body) {
+  public ImportResult importFromUrl(@RequestBody ImportFromUrlRequest body) {
     try {
       var downloaded = urlDownloadService.fetch(body.url());
 
@@ -80,14 +79,14 @@ public class LoadController {
       String sql = sqlScriptService.generate(event);
       byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-      String path = sqlScriptService.deriveSqlRemote(remote);
+      String path = sqlScriptService.generateRemotePath();
       String fileName = path.substring(path.lastIndexOf('/') + 1);
 
       BucketUploadResponse uploadResponse =
               sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
 
       return new ImportResult(
-              remote,
+              path,
               downloaded.bytes().length,
               payload.uid(),
               payload.dtstart(),
