@@ -13,9 +13,9 @@ INSERT INTO events (
 )
 VALUES (
            'john-20250303@mycompany.com',
-           '20250201T080000Z',
-           '20250303T090000',
-           '20250303T150000',
+           '2025-02-01 08:00:00',
+           '2025-03-03 09:00:00',
+           '2025-03-03 15:00:00',
            'Work session',
            '[acme.ch] Development session',
            'BUSINESS',

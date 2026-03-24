@@ -165,6 +165,7 @@ The code maps the remote JSON file to this structure:
 Notes:
 
 - unknown JSON properties are ignored
+- `dtstamp`, `dtstart`, and `dtend` are written to SQL as `yyyy-MM-dd HH:mm:ss`
 - nullable fields are encoded as `NULL` in SQL
 - single quotes are escaped in generated SQL
 
