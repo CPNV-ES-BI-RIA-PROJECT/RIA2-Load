@@ -57,7 +57,7 @@ public class LoadController {
   @ResponseStatus(HttpStatus.CREATED)
   public ImportResult importFromUrl(@RequestBody ImportFromUrlRequest body) {
     try {
-      var downloaded = urlDownloadService.fetch(body.url());
+      final var downloaded = fetchRemoteObject(body.url());
 
       TestPayload payload = testPayloadReader.read(downloaded.bytes());
 
@@ -105,6 +105,18 @@ public class LoadController {
     } catch (Exception e) {
       log.error("Import unexpected error", e);
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Import failed", e);
+    }
+  }
+
+  private UrlDownloadService.DownloadedObject fetchRemoteObject(String url) {
+    try {
+      return urlDownloadService.fetch(url);
+    } catch (IllegalStateException e) {
+      throw new ResponseStatusException(
+              HttpStatus.BAD_GATEWAY,
+              "Remote resource is inaccessible",
+              e
+      );
     }
   }
 
