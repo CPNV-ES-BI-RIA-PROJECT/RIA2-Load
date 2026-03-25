@@ -1,5 +1,5 @@
 @startuml
-title POST /load/objects/import?remote=... (Sync, REST, Download -> Parse JSON -> Generate SQL -> Transfer SQL)
+title POST /load/objects/import? (Sync, REST, Download -> Parse JSON -> Generate SQL -> Transfer SQL)
 
 participant Orchestrator
 participant Router
@@ -13,8 +13,8 @@ participant SqlScriptTransferClient as TransferClient
 participant BucketAdapter_API as BucketAdapter
 
 == 1. HTTP Request ==
-Orchestrator -> Router: POST /load/objects/import?remote=...\nBody: {"url":"https://..."}
-Router -> Controller: importFromUrl(remote, body)
+Orchestrator -> Router: POST /load/objects/import?\nBody: {"url":"https://..."}
+Router -> Controller: importFromUrl(body)
 
 == 2. Download remote JSON ==
 Controller -> UrlDownloadService: fetch(body.url())
