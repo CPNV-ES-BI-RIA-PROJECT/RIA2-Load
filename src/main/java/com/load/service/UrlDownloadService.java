@@ -1,6 +1,7 @@
 package com.load.service;
 
 import org.springframework.stereotype.Service;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,43 +18,17 @@ public class UrlDownloadService {
     // MVP: limite simple. Idéalement configurable via properties.
     private static final long MAX_BYTES = 50L * 1024 * 1024; // 50 MB
 
-    private final HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
+    private final HttpClient client;
 
-    public DownloadedObject fetch(String url) {
-        URI uri = validateUrl(url);
+    public UrlDownloadService() {
+        this(HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build());
+    }
 
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(Duration.ofSeconds(60))
-                .GET()
-                .header("User-Agent", "ria2-load-downloader/1.0")
-                .build();
-
-        try {
-            HttpResponse<InputStream> resp = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-
-            if (resp.statusCode() != 200) {
-                throw new IllegalStateException("Unexpected HTTP status: " + resp.statusCode());
-            }
-
-            long contentLength = resp.headers().firstValueAsLong("content-length").orElse(-1);
-            if (contentLength > MAX_BYTES) {
-                throw new IllegalStateException("File too large (Content-Length=" + contentLength + ")");
-            }
-
-            String contentType = resp.headers().firstValue("content-type").orElse("application/octet-stream");
-
-            byte[] bytes = readWithLimit(resp.body(), MAX_BYTES);
-            return new DownloadedObject(bytes, contentType);
-
-        } catch (IOException e) {
-            throw new IllegalStateException("I/O error while downloading", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Download interrupted", e);
-        }
+    UrlDownloadService(HttpClient client) {
+        this.client = client;
     }
 
     private static byte[] readWithLimit(InputStream in, long maxBytes) throws IOException {
@@ -99,19 +74,53 @@ public class UrlDownloadService {
     private static void blockLocalAddresses(String host) {
         try {
             InetAddress addr = InetAddress.getByName(host);
+            // Report the AWS metadata endpoint explicitly before the broader link-local guard.
+            if ("169.254.169.254".equals(addr.getHostAddress())) {
+                throw new IllegalArgumentException("Metadata address is not allowed");
+            }
             if (addr.isAnyLocalAddress()
                     || addr.isLoopbackAddress()
                     || addr.isLinkLocalAddress()
                     || addr.isSiteLocalAddress()) {
                 throw new IllegalArgumentException("Local/private addresses are not allowed");
             }
-            // Bloquer metadata AWS courante (si résolue par IP directe)
-            if ("169.254.169.254".equals(addr.getHostAddress())) {
-                throw new IllegalArgumentException("Metadata address is not allowed");
-            }
         } catch (IOException e) {
             // Si résolution DNS échoue: on rejette (plus sûr)
             throw new IllegalArgumentException("Unable to resolve host", e);
+        }
+    }
+
+    public DownloadedObject fetch(String url) {
+        URI uri = validateUrl(url);
+
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(60))
+                .GET()
+                .header("User-Agent", "ria2-load-downloader/1.0")
+                .build();
+
+        try {
+            HttpResponse<InputStream> resp = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (resp.statusCode() != 200) {
+                throw new IllegalStateException("Unexpected HTTP status: " + resp.statusCode());
+            }
+
+            long contentLength = resp.headers().firstValueAsLong("content-length").orElse(-1);
+            if (contentLength > MAX_BYTES) {
+                throw new IllegalStateException("File too large (Content-Length=" + contentLength + ")");
+            }
+
+            String contentType = resp.headers().firstValue("content-type").orElse("application/octet-stream");
+
+            byte[] bytes = readWithLimit(resp.body(), MAX_BYTES);
+            return new DownloadedObject(bytes, contentType);
+
+        } catch (IOException e) {
+            throw new IllegalStateException("I/O error while downloading", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Download interrupted", e);
         }
     }
 
