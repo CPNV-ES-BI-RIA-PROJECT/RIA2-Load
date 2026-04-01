@@ -61,6 +61,55 @@ class TestPayloadReaderTest {
     }
 
     @Test
+    void shouldReadSingleEntryArrayPayloadWithNestedDatesAndLists() {
+        /*
+         * Feature: Test payload deserialization
+         * Scenario: Reading the alternate calendar-style payload format
+         * Given a JSON array containing one event with nested start/end objects and list fields
+         * When the payload is read
+         * Then the reader flattens it into the internal payload structure
+         */
+        byte[] json = """
+                [
+                  {
+                    "uid": "john-20250303@mycompany.com",
+                    "dtstamp": "2025-02-01 08:00:00",
+                    "start": {
+                      "value": "2025-03-03 09:00:00",
+                      "timezone": "Europe/Bern"
+                    },
+                    "end": {
+                      "value": "2025-03-03 15:00:00",
+                      "timezone": "Europe/Bern"
+                    },
+                    "summary": "Work session",
+                    "description": "[acme.ch] Development session",
+                    "categories": ["BUSINESS"],
+                    "organizer": "contact@acme.ch",
+                    "attendees": ["john.doe@mycompany.com"],
+                    "location": "https://maps.google.com/?q=46.2044,6.1432"
+                  }
+                ]
+                """.getBytes(StandardCharsets.UTF_8);
+
+        TestPayload payload = reader.read(json);
+
+        assertEquals(new TestPayload(
+                "john-20250303@mycompany.com",
+                "2025-02-01 08:00:00",
+                "2025-03-03 09:00:00",
+                "2025-03-03 15:00:00",
+                "Work session",
+                "[acme.ch] Development session",
+                "BUSINESS",
+                "contact@acme.ch",
+                "john.doe@mycompany.com",
+                "https://maps.google.com/?q=46.2044,6.1432",
+                "Europe/Bern"
+        ), payload);
+    }
+
+    @Test
     void shouldRejectMalformedJsonPayload() {
         /*
          * Feature: Test payload deserialization
@@ -117,6 +166,46 @@ class TestPayloadReaderTest {
     }
 
     @Test
+    void shouldConvertSqlStylePayloadDatesIntoEventRowDates() {
+        /*
+         * Feature: Event row normalization
+         * Scenario: Accepting SQL-style payload timestamps
+         * Given an event payload containing date-times already formatted as yyyy-MM-dd HH:mm:ss
+         * When the payload is transformed into an event row
+         * Then the timestamps are accepted and preserved in SQL format
+         */
+        TestPayload payload = new TestPayload(
+                "evt-sql-style",
+                "2025-02-01 08:00:00",
+                "2025-03-03 09:00:00",
+                "2025-03-03 15:00:00",
+                "Work session",
+                "Imported event",
+                "BUSINESS",
+                "organizer@example.com",
+                "attendee@example.com",
+                "Lausanne",
+                "Europe/Bern"
+        );
+
+        EventRow event = reader.asEvent(payload);
+
+        assertEquals(new EventRow(
+                "evt-sql-style",
+                "2025-02-01 08:00:00",
+                "2025-03-03 09:00:00",
+                "2025-03-03 15:00:00",
+                "Work session",
+                "Imported event",
+                "BUSINESS",
+                "organizer@example.com",
+                "attendee@example.com",
+                "Lausanne",
+                "Europe/Bern"
+        ), event);
+    }
+
+    @Test
     void shouldPreserveNullAndBlankDateValuesWhenTransformingPayload() {
         /*
          * Feature: Event row normalization
@@ -167,7 +256,7 @@ class TestPayloadReaderTest {
          */
         TestPayload payload = new TestPayload(
                 "evt-invalid",
-                "2026-01-09 10:00:00",
+                "2026/01/09 10:00:00",
                 "20260109T110000",
                 "20260109T120000",
                 "Load test",
@@ -181,7 +270,7 @@ class TestPayloadReaderTest {
 
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> reader.asEvent(payload));
 
-        assertEquals("Invalid date format: 2026-01-09 10:00:00", failure.getMessage());
+        assertEquals("Invalid date format: 2026/01/09 10:00:00", failure.getMessage());
         assertInstanceOf(DateTimeParseException.class, failure.getCause());
     }
 
