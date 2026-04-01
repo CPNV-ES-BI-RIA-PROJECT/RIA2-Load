@@ -197,9 +197,38 @@ The code maps the remote JSON file to this structure:
 }
 ```
 
+The reader also accepts a single-entry JSON array using nested `start` and `end`
+objects, for example:
+
+```json
+[
+  {
+    "uid": "john-20250303@mycompany.com",
+    "dtstamp": "2025-02-01 08:00:00",
+    "start": {
+      "value": "2025-03-03 09:00:00",
+      "timezone": "Europe/Bern"
+    },
+    "end": {
+      "value": "2025-03-03 15:00:00",
+      "timezone": "Europe/Bern"
+    },
+    "summary": "Work session",
+    "description": "[acme.ch] Development session",
+    "categories": ["BUSINESS"],
+    "organizer": "contact@acme.ch",
+    "attendees": ["john.doe@mycompany.com"],
+    "location": "https://maps.google.com/?q=46.2044,6.1432"
+  }
+]
+```
+
 Notes:
 
 - unknown JSON properties are ignored
+- `dtstamp`, `dtstart`, and `dtend` accept both compact calendar values like `20250303T090000`
+  and SQL-style values like `2025-03-03 09:00:00`
+- `dtstamp`, `dtstart`, and `dtend` are written to SQL as `yyyy-MM-dd HH:mm:ss`
 - nullable fields are encoded as `NULL` in SQL
 - single quotes are escaped in generated SQL
 

@@ -1,10 +1,16 @@
 package com.load.service.sql;
 
 import com.load.dto.Rows.EventRow;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SqlScriptService {
+
+    private static final DateTimeFormatter REMOTE_TIMESTAMP_FORMAT =
+            DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final String REMOTE_PREFIX = "bi1-julien/load/";
 
     public String generate(EventRow event) {
         StringBuilder sb = new StringBuilder(1024);
@@ -39,10 +45,7 @@ public class SqlScriptService {
         return sb.toString();
     }
 
-    public static String deriveSqlRemote(String remote) {
-        if (remote == null || remote.isBlank()) return "script.sql";
-        if (remote.endsWith(".json")) return remote.substring(0, remote.length() - 5) + ".sql";
-        if (remote.endsWith(".sql")) return remote;
-        return remote + ".sql";
+    public String generateRemotePath() {
+        return REMOTE_PREFIX + LocalDateTime.now().format(REMOTE_TIMESTAMP_FORMAT) + ".sql";
     }
 }
