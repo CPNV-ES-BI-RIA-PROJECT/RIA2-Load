@@ -1,10 +1,12 @@
 package com.load.controller;
 
 import com.load.dto.BucketUploadResponse;
+import com.load.dto.LoadImportResult;
 import com.load.dto.Rows.EventRow;
 import com.load.dto.TestPayload;
 import com.load.service.TestPayloadReader;
 import com.load.service.UrlDownloadService;
+import com.load.service.importer.LoadImportService;
 import com.load.service.sql.SqlScriptService;
 import com.load.service.sql.SqlScriptTransferClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -320,7 +322,7 @@ class LoadControllerImportTest {
      * When its record accessors are read
      * Then each accessor returns the stored business value
      */
-    LoadController.ImportResult result = new LoadController.ImportResult(
+    LoadImportResult result = new LoadImportResult(
             "bi1-julien/load/test.sql",
             42,
             "evt-123",
@@ -347,12 +349,13 @@ class LoadControllerImportTest {
           SqlScriptService sqlScriptService,
           SqlScriptTransferClient sqlScriptTransferClient
   ) {
-    return MockMvcBuilders.standaloneSetup(new LoadController(
+    LoadImportService loadImportService = new LoadImportService(
             urlDownloadService,
             testPayloadReader,
             sqlScriptService,
             sqlScriptTransferClient
-    )).build();
+    );
+    return MockMvcBuilders.standaloneSetup(new LoadController(loadImportService)).build();
   }
 
   private void assertBadRequestForPayload(TestPayload payload, String expectedReason) throws Exception {

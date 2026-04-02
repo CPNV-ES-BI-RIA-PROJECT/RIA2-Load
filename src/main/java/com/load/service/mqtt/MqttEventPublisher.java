@@ -2,8 +2,10 @@ package com.load.service.mqtt;
 
 import com.load.config.mqtt.EtlMqttProperties;
 import com.load.dto.LoadImportResult;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,6 +34,10 @@ public class MqttEventPublisher {
         this.properties = properties;
         this.mqttOutputChannel = mqttOutputChannel;
         this.jsonMapper = jsonMapper;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     public void publishRunning(String jobId, int progress) {
@@ -83,10 +89,6 @@ public class MqttEventPublisher {
         if (!sent) {
             log.warn("MQTT event not sent on topic={}", topic);
         }
-    }
-
-    private static boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 
     private String toJson(Object payload) {

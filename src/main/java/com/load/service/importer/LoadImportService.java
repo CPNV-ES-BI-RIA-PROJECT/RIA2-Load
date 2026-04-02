@@ -41,14 +41,14 @@ public class LoadImportService {
         String sql = sqlScriptService.generate(event);
         byte[] sqlBytes = sql.getBytes(StandardCharsets.UTF_8);
 
-        String path = sqlScriptService.deriveSqlRemote(remote);
-        String fileName = path.substring(path.lastIndexOf('/') + 1);
+        String sqlRemote = sqlScriptService.deriveSqlRemote(remote);
+        String fileName = sqlRemote.substring(sqlRemote.lastIndexOf('/') + 1);
 
         BucketUploadResponse uploadResponse =
-                sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
+                sqlScriptTransferClient.sendSqlScript(sqlRemote, fileName, sqlBytes);
 
         return new LoadImportResult(
-                remote,
+                sqlRemote,
                 downloaded.bytes().length,
                 payload.uid(),
                 payload.dtstart(),

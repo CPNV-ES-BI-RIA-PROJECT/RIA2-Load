@@ -159,4 +159,14 @@ class SqlScriptServiceTest {
         assertFalse(parsedTimestamp.isBefore(before));
         assertFalse(parsedTimestamp.isAfter(after));
     }
+
+    @Test
+    void shouldConvertJsonRemoteToSqlRemote() {
+        assertEquals("jobs/123.sql", service.deriveSqlRemote("jobs/123.json"));
+    }
+
+    @Test
+    void shouldAppendSqlExtensionWhenRemoteHasNoExtension() {
+        assertEquals("jobs/123.sql", service.deriveSqlRemote("jobs/123"));
+    }
 }

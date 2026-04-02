@@ -48,4 +48,19 @@ public class SqlScriptService {
     public String generateRemotePath() {
         return REMOTE_PREFIX + LocalDateTime.now().format(REMOTE_TIMESTAMP_FORMAT) + ".sql";
     }
+
+    public String deriveSqlRemote(String remote) {
+        if (remote == null || remote.isBlank()) {
+            return generateRemotePath();
+        }
+
+        String normalizedRemote = remote.trim();
+        if (normalizedRemote.endsWith(".sql")) {
+            return normalizedRemote;
+        }
+        if (normalizedRemote.endsWith(".json")) {
+            return normalizedRemote.substring(0, normalizedRemote.length() - 5) + ".sql";
+        }
+        return normalizedRemote + ".sql";
+    }
 }

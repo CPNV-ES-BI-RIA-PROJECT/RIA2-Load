@@ -4,8 +4,10 @@ import com.load.config.mqtt.EtlMqttProperties;
 import com.load.dto.LoadImportResult;
 import com.load.dto.mqtt.MqttStartCommand;
 import com.load.service.importer.LoadImportService;
+
 import java.io.IOException;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -35,6 +37,32 @@ public class MqttCommandHandler {
         this.properties = properties;
         this.loadImportService = loadImportService;
         this.eventPublisher = eventPublisher;
+    }
+
+    private static String errorCodeFor(Exception exception) {
+        if (exception instanceof IllegalArgumentException) {
+            return "LOAD_VALIDATION_ERROR";
+        }
+        if (exception instanceof IllegalStateException) {
+            return "LOAD_EXECUTION_ERROR";
+        }
+        return "LOAD_INTERNAL_ERROR";
+    }
+
+    private static String failureMessage(Exception exception) {
+        String message = trimToNull(exception.getMessage());
+        if (message != null) {
+            return message;
+        }
+        return "Unexpected load error";
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
@@ -103,31 +131,5 @@ public class MqttCommandHandler {
             }
         }
         return "jobs/" + jobId + ".json";
-    }
-
-    private static String errorCodeFor(Exception exception) {
-        if (exception instanceof IllegalArgumentException) {
-            return "LOAD_VALIDATION_ERROR";
-        }
-        if (exception instanceof IllegalStateException) {
-            return "LOAD_EXECUTION_ERROR";
-        }
-        return "LOAD_INTERNAL_ERROR";
-    }
-
-    private static String failureMessage(Exception exception) {
-        String message = trimToNull(exception.getMessage());
-        if (message != null) {
-            return message;
-        }
-        return "Unexpected load error";
-    }
-
-    private static String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 }
