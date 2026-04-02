@@ -114,7 +114,7 @@ Behavior:
 - accepts only `http` and `https`
 - rejects local/private addresses
 - limits downloads to 50 MB
-- requires `uid`, `dtstamp`, `dtstart`, and `dtend`
+- requires `uid`, `dtstamp`, `dtstart`, and `dtend` for every imported event
 - converts the destination path to `.sql`
 
 Path conversion rules:
@@ -126,10 +126,11 @@ Success response:
 ```json
 {
   "remote": "events/demo.json",
-  "sizeBytes": 365,
-  "uid": "john-20250303@mycompany.com",
-  "dtstart": "20250303T090000",
-  "dtend": "20250303T150000",
+  "sizeBytes": 1124,
+  "eventCount": 2,
+  "uid": "john-20250303-1@mycompany.com",
+  "dtstart": "2025-03-03 09:00:00",
+  "dtend": "2025-03-03 15:00:00",
   "bucketRemote": "events/demo.sql",
   "shareUrl": "https://bucket-adapter.example/share/...",
   "expirationTime": 1746700000
@@ -144,7 +145,7 @@ Main status codes:
 
 ## JSON Payload Format
 
-The code maps the remote JSON file to this structure:
+The code accepts a single event as a flat JSON object:
 
 ```json
 {
@@ -162,35 +163,56 @@ The code maps the remote JSON file to this structure:
 }
 ```
 
-The reader also accepts a single-entry JSON array using nested `start` and `end`
-objects, for example:
+It also accepts a wrapped payload containing multiple events using nested `start`
+and `end` objects:
 
 ```json
-[
-  {
-    "uid": "john-20250303@mycompany.com",
-    "dtstamp": "2025-02-01 08:00:00",
-    "start": {
-      "value": "2025-03-03 09:00:00",
-      "timezone": "Europe/Bern"
+{
+  "events": [
+    {
+      "uid": "john-20250303-1@mycompany.com",
+      "dtstamp": "2025-02-01 08:00:00",
+      "start": {
+        "value": "2025-03-03 09:00:00",
+        "timezone": "Europe/Bern"
+      },
+      "end": {
+        "value": "2025-03-03 15:00:00",
+        "timezone": "Europe/Bern"
+      },
+      "summary": "Work session 1",
+      "description": "[acme.ch] Development session",
+      "categories": ["BUSINESS"],
+      "organizer": "contact@acme.ch",
+      "attendees": ["john.doe@mycompany.com"],
+      "location": "https://maps.google.com/?q=46.2044,6.1432"
     },
-    "end": {
-      "value": "2025-03-03 15:00:00",
-      "timezone": "Europe/Bern"
-    },
-    "summary": "Work session",
-    "description": "[acme.ch] Development session",
-    "categories": ["BUSINESS"],
-    "organizer": "contact@acme.ch",
-    "attendees": ["john.doe@mycompany.com"],
-    "location": "https://maps.google.com/?q=46.2044,6.1432"
-  }
-]
+    {
+      "uid": "john-20250303-2@mycompany.com",
+      "dtstamp": "2025-02-01 08:00:00",
+      "start": {
+        "value": "2025-03-04 09:00:00",
+        "timezone": "Europe/Bern"
+      },
+      "end": {
+        "value": "2025-03-04 15:00:00",
+        "timezone": "Europe/Bern"
+      },
+      "summary": "Work session 2",
+      "description": "[acme.ch] Development session",
+      "categories": ["BUSINESS"],
+      "organizer": "contact@acme.ch",
+      "attendees": ["john.doe@mycompany.com"],
+      "location": "https://maps.google.com/?q=46.2044,6.1432"
+    }
+  ]
+}
 ```
 
 Notes:
 
 - unknown JSON properties are ignored
+- the wrapped `events` array can contain one or more events
 - `dtstamp`, `dtstart`, and `dtend` accept both compact calendar values like `20250303T090000`
   and SQL-style values like `2025-03-03 09:00:00`
 - `dtstamp`, `dtstart`, and `dtend` are written to SQL as `yyyy-MM-dd HH:mm:ss`

@@ -3,6 +3,7 @@ package com.load.service.sql;
 import com.load.dto.Rows.EventRow;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,6 +12,19 @@ public class SqlScriptService {
     private static final DateTimeFormatter REMOTE_TIMESTAMP_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
     private static final String REMOTE_PREFIX = "bi1-julien/load/";
+
+    public String generate(List<EventRow> events) {
+        StringBuilder sb = new StringBuilder(Math.max(1024, events.size() * 512));
+
+        for (int i = 0; i < events.size(); i++) {
+            if (i > 0) {
+                sb.append("\n\n");
+            }
+            sb.append(generate(events.get(i)));
+        }
+
+        return sb.toString();
+    }
 
     public String generate(EventRow event) {
         StringBuilder sb = new StringBuilder(1024);

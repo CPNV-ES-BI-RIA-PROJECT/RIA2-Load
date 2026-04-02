@@ -8,6 +8,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -107,6 +108,113 @@ class TestPayloadReaderTest {
                 "https://maps.google.com/?q=46.2044,6.1432",
                 "Europe/Bern"
         ), payload);
+    }
+
+    @Test
+    void shouldReadWrappedMultiEventPayload() {
+        /*
+         * Feature: Test payload deserialization
+         * Scenario: Reading a wrapped payload containing multiple events
+         * Given a JSON object with an events array using nested start/end objects
+         * When the payload is read as a collection
+         * Then the reader returns all events flattened into the internal payload structure
+         */
+        byte[] json = """
+                {
+                  "events": [
+                    {
+                      "uid": "john-20250303-1@mycompany.com",
+                      "dtstamp": "2025-02-01 08:00:00",
+                      "start": {
+                        "value": "2025-03-03 09:00:00",
+                        "timezone": "Europe/Bern"
+                      },
+                      "end": {
+                        "value": "2025-03-03 15:00:00",
+                        "timezone": "Europe/Bern"
+                      },
+                      "summary": "Work session 1",
+                      "description": "[acme.ch] Development session",
+                      "categories": ["BUSINESS"],
+                      "organizer": "contact@acme.ch",
+                      "attendees": ["john.doe@mycompany.com"],
+                      "location": "https://maps.google.com/?q=46.2044,6.1432"
+                    },
+                    {
+                      "uid": "john-20250303-2@mycompany.com",
+                      "dtstamp": "2025-02-01 08:00:00",
+                      "start": {
+                        "value": "2025-03-04 09:00:00",
+                        "timezone": "Europe/Bern"
+                      },
+                      "end": {
+                        "value": "2025-03-04 15:00:00",
+                        "timezone": "Europe/Bern"
+                      },
+                      "summary": "Work session 2",
+                      "description": "[acme.ch] Development session",
+                      "categories": ["BUSINESS"],
+                      "organizer": "contact@acme.ch",
+                      "attendees": ["john.doe@mycompany.com"],
+                      "location": "https://maps.google.com/?q=46.2044,6.1432"
+                    }
+                  ]
+                }
+                """.getBytes(StandardCharsets.UTF_8);
+
+        List<TestPayload> payloads = reader.readAll(json);
+
+        assertEquals(List.of(
+                new TestPayload(
+                        "john-20250303-1@mycompany.com",
+                        "2025-02-01 08:00:00",
+                        "2025-03-03 09:00:00",
+                        "2025-03-03 15:00:00",
+                        "Work session 1",
+                        "[acme.ch] Development session",
+                        "BUSINESS",
+                        "contact@acme.ch",
+                        "john.doe@mycompany.com",
+                        "https://maps.google.com/?q=46.2044,6.1432",
+                        "Europe/Bern"
+                ),
+                new TestPayload(
+                        "john-20250303-2@mycompany.com",
+                        "2025-02-01 08:00:00",
+                        "2025-03-04 09:00:00",
+                        "2025-03-04 15:00:00",
+                        "Work session 2",
+                        "[acme.ch] Development session",
+                        "BUSINESS",
+                        "contact@acme.ch",
+                        "john.doe@mycompany.com",
+                        "https://maps.google.com/?q=46.2044,6.1432",
+                        "Europe/Bern"
+                )
+        ), payloads);
+    }
+
+    @Test
+    void shouldRejectMultiEventPayloadForLegacySingleEventRead() {
+        /*
+         * Feature: Test payload deserialization
+         * Scenario: Protecting the legacy single-event reader from multi-event payloads
+         * Given a wrapped payload with more than one event
+         * When the legacy single-event read API is used
+         * Then the reader rejects the payload instead of silently dropping events
+         */
+        byte[] json = """
+                {
+                  "events": [
+                    { "uid": "evt-1" },
+                    { "uid": "evt-2" }
+                  ]
+                }
+                """.getBytes(StandardCharsets.UTF_8);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> reader.read(json));
+
+        assertEquals("Payload must contain exactly one event", failure.getMessage());
     }
 
     @Test

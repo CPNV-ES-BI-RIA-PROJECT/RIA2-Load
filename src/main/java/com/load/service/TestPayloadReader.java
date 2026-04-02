@@ -35,9 +35,50 @@ public class TestPayloadReader {
         this.jsonMapper = jsonMapper;
     }
 
-    public TestPayload read(byte[] bytes) {
-        JsonNode payloadNode = unwrapPayloadNode(jsonMapper.readTree(bytes));
+    public List<TestPayload> readAll(byte[] bytes) {
+        List<JsonNode> payloadNodes = unwrapPayloadNodes(jsonMapper.readTree(bytes));
+        List<TestPayload> payloads = new ArrayList<>(payloadNodes.size());
 
+        for (JsonNode payloadNode : payloadNodes) {
+            payloads.add(toPayload(payloadNode));
+        }
+
+        return payloads;
+    }
+
+    public TestPayload read(byte[] bytes) {
+        List<TestPayload> payloads = readAll(bytes);
+        if (payloads.size() != 1) {
+            throw new IllegalArgumentException("Payload must contain exactly one event");
+        }
+        return payloads.getFirst();
+    }
+
+    public List<EventRow> asEvents(List<TestPayload> payloads) {
+        List<EventRow> events = new ArrayList<>(payloads.size());
+        for (TestPayload payload : payloads) {
+            events.add(asEvent(payload));
+        }
+        return events;
+    }
+
+    public EventRow asEvent(TestPayload payload) {
+        return new EventRow(
+                payload.uid(),
+                normalizeDateTime(payload.dtstamp()),
+                normalizeDateTime(payload.dtstart()),
+                normalizeDateTime(payload.dtend()),
+                payload.summary(),
+                payload.description(),
+                payload.categories(),
+                payload.organizer(),
+                payload.attendee(),
+                payload.location(),
+                payload.timezone()
+        );
+    }
+
+    private TestPayload toPayload(JsonNode payloadNode) {
         return new TestPayload(
                 textValue(payloadNode, "uid"),
                 textValue(payloadNode, "dtstamp"),
@@ -66,22 +107,6 @@ public class TestPayloadReader {
                         nestedTextValue(payloadNode, "start", "timezone"),
                         nestedTextValue(payloadNode, "end", "timezone")
                 )
-        );
-    }
-
-    public EventRow asEvent(TestPayload payload) {
-        return new EventRow(
-                payload.uid(),
-                normalizeDateTime(payload.dtstamp()),
-                normalizeDateTime(payload.dtstart()),
-                normalizeDateTime(payload.dtend()),
-                payload.summary(),
-                payload.description(),
-                payload.categories(),
-                payload.organizer(),
-                payload.attendee(),
-                payload.location(),
-                payload.timezone()
         );
     }
 
@@ -122,22 +147,43 @@ public class TestPayloadReader {
         throw new DateTimeParseException("Unsupported local date-time format", value, 0);
     }
 
-    private JsonNode unwrapPayloadNode(JsonNode node) {
+    private List<JsonNode> unwrapPayloadNodes(JsonNode node) {
         if (node == null || node.isNull()) {
             throw new IllegalArgumentException("Payload is empty");
         }
-        if (!node.isArray()) {
-            return node;
-        }
-        if (node.size() != 1) {
-            throw new IllegalArgumentException("Payload array must contain exactly one event");
+
+        if (node.isObject()) {
+            JsonNode eventsNode = node.get("events");
+            if (eventsNode == null || eventsNode.isNull()) {
+                return List.of(node);
+            }
+            if (!eventsNode.isArray()) {
+                throw new IllegalArgumentException("events must be an array");
+            }
+            return arrayElements(eventsNode);
         }
 
-        JsonNode firstNode = node.get(0);
-        if (firstNode == null || firstNode.isNull()) {
+        if (node.isArray()) {
+            return arrayElements(node);
+        }
+
+        throw new IllegalArgumentException("Payload must be a JSON object or array");
+    }
+
+    private List<JsonNode> arrayElements(JsonNode arrayNode) {
+        if (arrayNode.isEmpty()) {
             throw new IllegalArgumentException("Payload is empty");
         }
-        return firstNode;
+
+        List<JsonNode> elements = new ArrayList<>(arrayNode.size());
+        for (JsonNode item : arrayNode) {
+            if (item == null || item.isNull()) {
+                throw new IllegalArgumentException("Payload is empty");
+            }
+            elements.add(item);
+        }
+
+        return elements;
     }
 
     private String textValue(JsonNode node, String fieldName) {

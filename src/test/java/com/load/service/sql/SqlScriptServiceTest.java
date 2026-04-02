@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -125,6 +126,47 @@ class SqlScriptServiceTest {
     }
 
     @Test
+    void shouldGenerateInsertStatementsForMultipleEvents() {
+        /*
+         * Feature: SQL script generation for imported events
+         * Scenario: Generating a script for multiple events in one payload
+         * Given two normalized events are ready for persistence
+         * When the SQL script is generated
+         * Then the service returns one INSERT statement per event in the same script
+         */
+        EventRow firstEvent = new EventRow(
+                "evt-123",
+                "2026-01-09 10:00:00",
+                "2026-01-09 11:00:00",
+                "2026-01-09 12:00:00",
+                "First event",
+                "Imported from Bob's calendar",
+                "training",
+                "organizer@example.com",
+                "attendee@example.com",
+                "Lausanne",
+                "Europe/Zurich"
+        );
+        EventRow secondEvent = new EventRow(
+                "evt-456",
+                "2026-01-10 10:00:00",
+                "2026-01-10 11:00:00",
+                "2026-01-10 12:00:00",
+                "Second event",
+                "Imported from Bob's calendar",
+                "training",
+                "organizer@example.com",
+                "attendee@example.com",
+                "Geneva",
+                "Europe/Zurich"
+        );
+
+        String expected = service.generate(firstEvent) + "\n\n" + service.generate(secondEvent);
+
+        assertEquals(expected, service.generate(List.of(firstEvent, secondEvent)));
+    }
+
+    @Test
     void shouldFailFastWhenEventIsMissing() {
         /*
          * Feature: SQL script generation input validation
@@ -133,7 +175,7 @@ class SqlScriptServiceTest {
          * When the SQL script is generated
          * Then the service fails immediately instead of creating invalid SQL
          */
-        assertThrows(NullPointerException.class, () -> service.generate(null));
+        assertThrows(NullPointerException.class, () -> service.generate((EventRow) null));
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.load.service.sql.SqlScriptTransferClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
@@ -59,24 +60,12 @@ public class LoadController {
     try {
       final var downloaded = fetchRemoteObject(body.url());
 
-      TestPayload payload = testPayloadReader.read(downloaded.bytes());
+      List<TestPayload> payloads = testPayloadReader.readAll(downloaded.bytes());
+      validatePayloads(payloads);
 
-      if (payload.uid() == null || payload.uid().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "uid is required");
-      }
-      if (payload.dtstamp() == null || payload.dtstamp().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtstamp is required");
-      }
-      if (payload.dtstart() == null || payload.dtstart().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtstart is required");
-      }
-      if (payload.dtend() == null || payload.dtend().isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dtend is required");
-      }
+      var events = testPayloadReader.asEvents(payloads);
 
-      var event = testPayloadReader.asEvent(payload);
-
-      String sql = sqlScriptService.generate(event);
+      String sql = sqlScriptService.generate(events);
       byte[] sqlBytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
       String path = sqlScriptService.generateRemotePath();
@@ -85,12 +74,14 @@ public class LoadController {
       BucketUploadResponse uploadResponse =
               sqlScriptTransferClient.sendSqlScript(path, fileName, sqlBytes);
 
+      TestPayload firstPayload = payloads.getFirst();
       return new ImportResult(
               path,
               downloaded.bytes().length,
-              payload.uid(),
-              payload.dtstart(),
-              payload.dtend(),
+              payloads.size(),
+              firstPayload.uid(),
+              firstPayload.dtstart(),
+              firstPayload.dtend(),
               uploadResponse.remote(),
               uploadResponse.shareUrl(),
               uploadResponse.expirationTime()
@@ -120,9 +111,28 @@ public class LoadController {
     }
   }
 
+  private void validatePayloads(List<TestPayload> payloads) {
+    for (int i = 0; i < payloads.size(); i++) {
+      TestPayload payload = payloads.get(i);
+      String prefix = payloads.size() == 1 ? "" : "events[" + i + "].";
+
+      requireValue(payload.uid(), prefix + "uid");
+      requireValue(payload.dtstamp(), prefix + "dtstamp");
+      requireValue(payload.dtstart(), prefix + "dtstart");
+      requireValue(payload.dtend(), prefix + "dtend");
+    }
+  }
+
+  private void requireValue(String value, String fieldName) {
+    if (value == null || value.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
+    }
+  }
+
   public record ImportResult(
           String remote,
           int sizeBytes,
+          int eventCount,
           String uid,
           String dtstart,
           String dtend,

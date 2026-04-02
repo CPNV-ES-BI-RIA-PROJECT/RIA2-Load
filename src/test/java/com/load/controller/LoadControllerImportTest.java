@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -107,7 +108,7 @@ class LoadControllerImportTest {
 
     mockMvc = mockMvcFor(
             new StaticUrlDownloadService(downloadedBytes),
-            new StubTestPayloadReader(payload, event),
+            new StubTestPayloadReader(List.of(payload), List.of(event)),
             sqlScriptService,
             sqlScriptTransferClient
     );
@@ -120,6 +121,7 @@ class LoadControllerImportTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.remote").value("bi1-julien/load/test.sql"))
             .andExpect(jsonPath("$.sizeBytes").value(downloadedBytes.length))
+            .andExpect(jsonPath("$.eventCount").value(1))
             .andExpect(jsonPath("$.uid").value("evt-123"))
             .andExpect(jsonPath("$.dtstart").value("20260109T110000Z"))
             .andExpect(jsonPath("$.dtend").value("20260109T120000Z"))
@@ -127,11 +129,90 @@ class LoadControllerImportTest {
             .andExpect(jsonPath("$.shareUrl").value("https://bucket.example.com/test.sql"))
             .andExpect(jsonPath("$.expirationTime").value(1700000000));
 
-    assertEquals(event, sqlScriptService.generatedEvent);
+    assertEquals(List.of(event), sqlScriptService.generatedEvents);
     assertEquals("bi1-julien/load/test.sql", sqlScriptTransferClient.remote);
     assertEquals("test.sql", sqlScriptTransferClient.fileName);
     assertArrayEquals(
             "INSERT INTO events VALUES ('evt-123');".getBytes(StandardCharsets.UTF_8),
+            sqlScriptTransferClient.content
+    );
+  }
+
+  @Test
+  void shouldReturnCreatedWhenMultiEventObjectImportSucceeds() throws Exception {
+    /*
+     * Feature: Object import from a shared URL
+     * Scenario: Importing a wrapped payload containing multiple events
+     * Given Alice shares a remote payload with an events array
+     * When the import endpoint processes the request
+     * Then it generates one SQL script containing all imported events
+     */
+    byte[] downloadedBytes = """
+            {"events":[{"uid":"evt-123"},{"uid":"evt-456"}]}
+            """.getBytes(StandardCharsets.UTF_8);
+    TestPayload firstPayload = validPayload();
+    TestPayload secondPayload = new TestPayload(
+            "evt-456",
+            "20260110T100000Z",
+            "20260110T110000Z",
+            "20260110T120000Z",
+            "Load test 2",
+            "Imported event 2",
+            "training",
+            "organizer@example.com",
+            "attendee@example.com",
+            "Geneva",
+            "Europe/Zurich"
+    );
+    EventRow firstEvent = validEvent();
+    EventRow secondEvent = new EventRow(
+            "evt-456",
+            "2026-01-10 10:00:00",
+            "2026-01-10 11:00:00",
+            "2026-01-10 12:00:00",
+            "Load test 2",
+            "Imported event 2",
+            "training",
+            "organizer@example.com",
+            "attendee@example.com",
+            "Geneva",
+            "Europe/Zurich"
+    );
+    RecordingSqlScriptService sqlScriptService = new RecordingSqlScriptService(
+            "INSERT INTO events VALUES ('evt-123');\n\nINSERT INTO events VALUES ('evt-456');",
+            "bi1-julien/load/test.sql"
+    );
+    RecordingSqlScriptTransferClient sqlScriptTransferClient = new RecordingSqlScriptTransferClient(
+            new BucketUploadResponse(
+                    "bucket/test.sql",
+                    "https://bucket.example.com/test.sql",
+                    1700000000L
+            )
+    );
+
+    mockMvc = mockMvcFor(
+            new StaticUrlDownloadService(downloadedBytes),
+            new StubTestPayloadReader(List.of(firstPayload, secondPayload), List.of(firstEvent, secondEvent)),
+            sqlScriptService,
+            sqlScriptTransferClient
+    );
+
+    mockMvc.perform(post("/load/objects/import")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {"url":"https://example.com/object.json"}
+                            """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.eventCount").value(2))
+            .andExpect(jsonPath("$.uid").value("evt-123"))
+            .andExpect(jsonPath("$.dtstart").value("20260109T110000Z"))
+            .andExpect(jsonPath("$.dtend").value("20260109T120000Z"))
+            .andExpect(jsonPath("$.bucketRemote").value("bucket/test.sql"));
+
+    assertEquals(List.of(firstEvent, secondEvent), sqlScriptService.generatedEvents);
+    assertArrayEquals(
+            "INSERT INTO events VALUES ('evt-123');\n\nINSERT INTO events VALUES ('evt-456');"
+                    .getBytes(StandardCharsets.UTF_8),
             sqlScriptTransferClient.content
     );
   }
@@ -145,7 +226,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload(null, "20260109T100000Z", "20260109T110000Z", "20260109T120000Z"), "uid is required");
+    assertBadRequestForPayloads(
+            List.of(payload(null, "20260109T100000Z", "20260109T110000Z", "20260109T120000Z")),
+            "uid is required"
+    );
   }
 
   @Test
@@ -157,7 +241,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("   ", "20260109T100000Z", "20260109T110000Z", "20260109T120000Z"), "uid is required");
+    assertBadRequestForPayloads(
+            List.of(payload("   ", "20260109T100000Z", "20260109T110000Z", "20260109T120000Z")),
+            "uid is required"
+    );
   }
 
   @Test
@@ -169,7 +256,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("evt-123", null, "20260109T110000Z", "20260109T120000Z"), "dtstamp is required");
+    assertBadRequestForPayloads(
+            List.of(payload("evt-123", null, "20260109T110000Z", "20260109T120000Z")),
+            "dtstamp is required"
+    );
   }
 
   @Test
@@ -181,7 +271,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("evt-123", "   ", "20260109T110000Z", "20260109T120000Z"), "dtstamp is required");
+    assertBadRequestForPayloads(
+            List.of(payload("evt-123", "   ", "20260109T110000Z", "20260109T120000Z")),
+            "dtstamp is required"
+    );
   }
 
   @Test
@@ -193,7 +286,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("evt-123", "20260109T100000Z", null, "20260109T120000Z"), "dtstart is required");
+    assertBadRequestForPayloads(
+            List.of(payload("evt-123", "20260109T100000Z", null, "20260109T120000Z")),
+            "dtstart is required"
+    );
   }
 
   @Test
@@ -205,7 +301,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("evt-123", "20260109T100000Z", "   ", "20260109T120000Z"), "dtstart is required");
+    assertBadRequestForPayloads(
+            List.of(payload("evt-123", "20260109T100000Z", "   ", "20260109T120000Z")),
+            "dtstart is required"
+    );
   }
 
   @Test
@@ -217,7 +316,10 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("evt-123", "20260109T100000Z", "20260109T110000Z", null), "dtend is required");
+    assertBadRequestForPayloads(
+            List.of(payload("evt-123", "20260109T100000Z", "20260109T110000Z", null)),
+            "dtend is required"
+    );
   }
 
   @Test
@@ -229,7 +331,28 @@ class LoadControllerImportTest {
      * When the import endpoint processes the request
      * Then it rejects the import with a bad request response
      */
-    assertBadRequestForPayload(payload("evt-123", "20260109T100000Z", "20260109T110000Z", "   "), "dtend is required");
+    assertBadRequestForPayloads(
+            List.of(payload("evt-123", "20260109T100000Z", "20260109T110000Z", "   ")),
+            "dtend is required"
+    );
+  }
+
+  @Test
+  void shouldReturnIndexedBadRequestWhenMultiEventPayloadContainsMissingField() throws Exception {
+    /*
+     * Feature: Object import validation
+     * Scenario: Identifying the failing event inside a multi-event payload
+     * Given one event in the events array is missing a required field
+     * When the import endpoint processes the request
+     * Then it rejects the payload with an indexed validation error
+     */
+    assertBadRequestForPayloads(
+            List.of(
+                    validPayload(),
+                    payload("evt-456", "20260110T100000Z", null, "20260110T120000Z")
+            ),
+            "events[1].dtstart is required"
+    );
   }
 
   @Test
@@ -247,7 +370,7 @@ class LoadControllerImportTest {
             new StaticUrlDownloadService("{}".getBytes(StandardCharsets.UTF_8)),
             new TestPayloadReader(null) {
               @Override
-              public TestPayload read(byte[] bytes) {
+              public List<TestPayload> readAll(byte[] bytes) {
                 throw invalidPayload;
               }
             },
@@ -283,7 +406,7 @@ class LoadControllerImportTest {
 
     mockMvc = mockMvcFor(
             new StaticUrlDownloadService("{}".getBytes(StandardCharsets.UTF_8)),
-            new StubTestPayloadReader(validPayload(), validEvent()),
+            new StubTestPayloadReader(List.of(validPayload()), List.of(validEvent())),
             new RecordingSqlScriptService(
                     "INSERT INTO events VALUES ('evt-123');",
                     "bi1-julien/load/test.sql"
@@ -323,6 +446,7 @@ class LoadControllerImportTest {
     LoadController.ImportResult result = new LoadController.ImportResult(
             "bi1-julien/load/test.sql",
             42,
+            1,
             "evt-123",
             "20260109T110000Z",
             "20260109T120000Z",
@@ -333,6 +457,7 @@ class LoadControllerImportTest {
 
     assertEquals("bi1-julien/load/test.sql", result.remote());
     assertEquals(42, result.sizeBytes());
+    assertEquals(1, result.eventCount());
     assertEquals("evt-123", result.uid());
     assertEquals("20260109T110000Z", result.dtstart());
     assertEquals("20260109T120000Z", result.dtend());
@@ -355,10 +480,10 @@ class LoadControllerImportTest {
     )).build();
   }
 
-  private void assertBadRequestForPayload(TestPayload payload, String expectedReason) throws Exception {
+  private void assertBadRequestForPayloads(List<TestPayload> payloads, String expectedReason) throws Exception {
     mockMvc = mockMvcFor(
             new StaticUrlDownloadService("{}".getBytes(StandardCharsets.UTF_8)),
-            new StubTestPayloadReader(payload, validEvent()),
+            new StubTestPayloadReader(payloads, List.of(validEvent())),
             new RecordingSqlScriptService(
                     "INSERT INTO events VALUES ('evt-123');",
                     "bi1-julien/load/test.sql"
@@ -440,23 +565,23 @@ class LoadControllerImportTest {
 
   private static final class StubTestPayloadReader extends TestPayloadReader {
 
-    private final TestPayload payload;
-    private final EventRow event;
+    private final List<TestPayload> payloads;
+    private final List<EventRow> events;
 
-    private StubTestPayloadReader(TestPayload payload, EventRow event) {
+    private StubTestPayloadReader(List<TestPayload> payloads, List<EventRow> events) {
       super(null);
-      this.payload = payload;
-      this.event = event;
+      this.payloads = payloads;
+      this.events = events;
     }
 
     @Override
-    public TestPayload read(byte[] bytes) {
-      return payload;
+    public List<TestPayload> readAll(byte[] bytes) {
+      return payloads;
     }
 
     @Override
-    public EventRow asEvent(TestPayload payload) {
-      return event;
+    public List<EventRow> asEvents(List<TestPayload> payloads) {
+      return events;
     }
   }
 
@@ -464,7 +589,7 @@ class LoadControllerImportTest {
 
     private final String sql;
     private final String remotePath;
-    private EventRow generatedEvent;
+    private List<EventRow> generatedEvents;
 
     private RecordingSqlScriptService(String sql, String remotePath) {
       this.sql = sql;
@@ -472,8 +597,8 @@ class LoadControllerImportTest {
     }
 
     @Override
-    public String generate(EventRow event) {
-      generatedEvent = event;
+    public String generate(List<EventRow> events) {
+      generatedEvents = List.copyOf(events);
       return sql;
     }
 
